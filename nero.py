@@ -8,7 +8,7 @@ model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
 
 
 # Функции для предобработки данных
-@st.cache
+@st.cache_data
 def preprocess_names(names):
     preprocessed_names = []
     for name in names:
@@ -21,13 +21,13 @@ def preprocess_names(names):
 
 
 # Функция для загрузки данных
-@st.cache
+@st.cache_data
 def load_data(file):
     return pd.read_excel(file)
 
 
 # Функция для вычисления эмбеддингов
-@st.cache(allow_output_mutation=True)
+@st.cache_data
 def compute_embeddings(names):
     return model.encode(names, convert_to_tensor=True)
 
@@ -59,8 +59,14 @@ if our_file and competitor_file:
     our_data = load_data(our_file)
     competitor_data = load_data(competitor_file)
 
-    our_product_names = preprocess_names(our_data['ProductName'].tolist())
-    competitor_product_names = preprocess_names(competitor_data['ProductName'].tolist())
+    our_columns = our_data.columns.tolist()
+    competitor_columns = competitor_data.columns.tolist()
+
+    our_column = st.selectbox('Выберите колонку с названиями ваших товаров', our_columns)
+    competitor_column = st.selectbox('Выберите колонку с названиями товаров конкурента', competitor_columns)
+
+    our_product_names = preprocess_names(our_data[our_column].tolist())
+    competitor_product_names = preprocess_names(competitor_data[competitor_column].tolist())
 
     matching_names = find_matching_names(our_product_names, competitor_product_names)
 
