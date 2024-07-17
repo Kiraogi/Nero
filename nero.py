@@ -1,23 +1,34 @@
 import pandas as pd
-from sentence_transformers import SentenceTransformer, util
-from transliterate import translit
+from sentence_transformers import SentenceTransformer, InputExample, losses, util
+from torch.utils.data import DataLoader
 import streamlit as st
+import io
+import pickle
 
 # Загрузка предобученной модели Sentence-BERT
-model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
+model_path = 'finetuned_model.pkl'
 
 
-# Функции для предобработки данных
-@st.cache_data
-def preprocess_names(names):
-    preprocessed_names = []
-    for name in names:
-        # Транслитерация с английского на русский
-        transliterated_name = translit(name, 'ru', reversed=True)
-        # Очистка и приведение к нижнему регистру
-        preprocessed_name = transliterated_name.lower().strip()
-        preprocessed_names.append(preprocessed_name)
-    return preprocessed_names
+def load_model(path):
+    try:
+        with open(path, 'rb') as file:
+            model = pickle.load(file)
+            st.write("Загружена дообученная модель.")
+            return model
+    except FileNotFoundError:
+        model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
+        st.write("Загружена предобученная модель.")
+        return model
+
+
+def save_model(model, path):
+    with open(path, 'wb') as file:
+        pickle.dump(model, file)
+    st.write("Модель сохранена.")
+
+
+main_model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
+fine_tuned_model = load_model(model_path)
 
 
 # Функция для загрузки данных
@@ -28,16 +39,28 @@ def load_data(file):
 
 # Функция для вычисления эмбеддингов
 @st.cache_data
-def compute_embeddings(names):
+def compute_embeddings(names, model):
     return model.encode(names, convert_to_tensor=True)
+
+
+# Функция для дообучения модели
+def train_model(model, examples):
+    train_dataloader = DataLoader(examples, shuffle=True, batch_size=16)
+    train_loss = losses.MultipleNegativesRankingLoss(model)
+    model.fit(train_objectives=[(train_dataloader, train_loss)], epochs=1)
+    save_model(model, model_path)
 
 
 # Функция для нахождения совпадающих названий
 def find_matching_names(our_product_names, competitor_product_names, threshold=0.8):
-    our_embeddings = compute_embeddings(our_product_names)
-    competitor_embeddings = compute_embeddings(competitor_product_names)
+    main_embeddings_our = compute_embeddings(our_product_names, main_model)
+    main_embeddings_competitor = compute_embeddings(competitor_product_names, main_model)
 
-    similarities = util.pytorch_cos_sim(our_embeddings, competitor_embeddings)
+    fine_tuned_embeddings_our = compute_embeddings(our_product_names, fine_tuned_model)
+    fine_tuned_embeddings_competitor = compute_embeddings(competitor_product_names, fine_tuned_model)
+
+    similarities = (util.pytorch_cos_sim(main_embeddings_our, main_embeddings_competitor) +
+                    util.pytorch_cos_sim(fine_tuned_embeddings_our, fine_tuned_embeddings_competitor)) / 2
 
     matching_names = []
     for i, our_name in enumerate(our_product_names):
@@ -54,6 +77,7 @@ st.write('Загрузите файлы с названиями ваших то�
 
 our_file = st.file_uploader('Загрузите файл с вашими товарами', type=['xlsx'])
 competitor_file = st.file_uploader('Загрузите файл с товарами конкурента', type=['xlsx'])
+examples_file = st.file_uploader('Загрузите файл с примерами соответствий (необязательно)', type=['xlsx'])
 
 if our_file and competitor_file:
     our_data = load_data(our_file)
@@ -65,8 +89,27 @@ if our_file and competitor_file:
     our_column = st.selectbox('Выберите колонку с названиями ваших товаров', our_columns)
     competitor_column = st.selectbox('Выберите колонку с названиями товаров конкурента', competitor_columns)
 
-    our_product_names = preprocess_names(our_data[our_column].tolist())
-    competitor_product_names = preprocess_names(competitor_data[competitor_column].tolist())
+    if examples_file:
+        examples_data = load_data(examples_file)
+        examples_column_our = st.selectbox('Выберите колонку с вашими названиями из примеров',
+                                           examples_data.columns.tolist())
+        examples_column_competitor = st.selectbox('Выберите колонку с названиями конкурента из примеров',
+                                                  examples_data.columns.tolist())
+
+        examples = []
+        for index, row in examples_data.iterrows():
+            example = InputExample(texts=[row[examples_column_our], row[examples_column_competitor]])
+            examples.append(example)
+
+        st.write('Дообучение модели на примерах...')
+        train_model(fine_tuned_model, examples)
+
+    st.write('Обработка данных...')
+
+    our_product_names = our_data[our_column].tolist()
+    competitor_product_names = competitor_data[competitor_column].tolist()
+
+    st.write('Вычисление эмбеддингов и поиск совпадений...')
 
     matching_names = find_matching_names(our_product_names, competitor_product_names)
 
@@ -75,10 +118,17 @@ if our_file and competitor_file:
         st.write('Найденные совпадения:')
         st.dataframe(results_df)
 
-        results_file = st.download_button(
+        # Создание файла для скачивания
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            results_df.to_excel(writer, index=False, sheet_name='Results')
+        processed_data = output.getvalue()
+
+        st.download_button(
             label="Скачать результаты",
-            data=results_df.to_excel(index=False),
-            file_name='matching_products.xlsx'
+            data=processed_data,
+            file_name='matching_products.xlsx',
+            mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         )
     else:
         st.write('Совпадений не найдено.')
