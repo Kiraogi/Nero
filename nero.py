@@ -3,27 +3,24 @@ from sentence_transformers import SentenceTransformer, InputExample, losses, uti
 from torch.utils.data import DataLoader
 import streamlit as st
 import io
-import pickle
+import torch
 
 # Загрузка предобученной модели Sentence-BERT
-model_path = 'finetuned_model.pkl'
+model_path = 'finetuned_model.pth'
 
 
 def load_model(path):
+    model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
     try:
-        with open(path, 'rb') as file:
-            model = pickle.load(file)
-            st.write("Загружена дообученная модель.")
-            return model
+        model.load_state_dict(torch.load(path))
+        st.write("Загружена дообученная модель.")
     except FileNotFoundError:
-        model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
         st.write("Загружена предобученная модель.")
-        return model
+    return model
 
 
 def save_model(model, path):
-    with open(path, 'wb') as file:
-        pickle.dump(model, file)
+    torch.save(model.state_dict(), path)
     st.write("Модель сохранена.")
 
 
