@@ -8,6 +8,8 @@ __pycache__/
 *.so
 
 # Distribution / packaging
+Error
+.Error
 .Python
 .sources
 .sources/

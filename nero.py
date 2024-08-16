@@ -49,9 +49,12 @@ def train_model(model, examples):
 
 
 # Функция для нахождения совпадающих названий
-def find_matching_names(our_product_names, competitor_product_names, threshold=0.8):
-    main_embeddings_our = compute_embeddings(our_product_names, main_model)
-    main_embeddings_competitor = compute_embeddings(competitor_product_names, main_model)
+def find_matching_names(our_product_names, competitor_product_names, threshold=0.8, model=None):
+    if model is None:
+        raise ValueError("Модель не передана")
+
+    main_embeddings_our = compute_embeddings(our_product_names, model)
+    main_embeddings_competitor = compute_embeddings(competitor_product_names, model)
 
     fine_tuned_embeddings_our = compute_embeddings(our_product_names, fine_tuned_model)
     fine_tuned_embeddings_competitor = compute_embeddings(competitor_product_names, fine_tuned_model)
@@ -108,7 +111,7 @@ if our_file and competitor_file:
 
     st.write('Вычисление эмбеддингов и поиск совпадений...')
 
-    matching_names = find_matching_names(our_product_names, competitor_product_names)
+    matching_names = find_matching_names(our_product_names, competitor_product_names, threshold=0.8, model=main_model)
 
     if matching_names:
         results_df = pd.DataFrame(matching_names, columns=['Наше название', 'Название конкурента', 'Схожесть'])
