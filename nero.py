@@ -1,4 +1,5 @@
 import pandas as pd
+import dask.dataframe as dd
 from sentence_transformers import SentenceTransformer, InputExample, losses, util
 from torch.utils.data import DataLoader
 import streamlit as st
@@ -39,13 +40,13 @@ fine_tuned_model = load_model(model_path)
 # Функция для загрузки данных
 @st.cache_data
 def load_data(file):
-    return pd.read_excel(file)
+    return dd.read_excel(file)
 
 
 # Функция для вычисления эмбеддингов
 @st.cache_data
 def compute_embeddings(names, _model):
-    return _model.encode(names, convert_to_tensor=True)
+    return _model.encode(names, convert_to_tensor=True).compute()
 
 # Создание интерфейса
 st.title("Неро")
@@ -66,12 +67,15 @@ else:
     st.write("Загружена предобученная модель.")
 
 # Функция для дообучения модели
-def train_model(model, examples, new_data):
+def train_model(model, examples, new_data=None):
     train_dataloader = DataLoader(examples, shuffle=True, batch_size=16)
     train_loss = losses.MultipleNegativesRankingLoss(model)
-    new_examples = [InputExample(texts=[new_data[i]], label=1) for i in range(len(new_data))]
-    new_dataloader = DataLoader(new_examples, shuffle=True, batch_size=16)
-    model.fit(train_objectives=[(train_dataloader, train_loss), (new_dataloader, train_loss)], epochs=1, output_path=model_path)
+    if new_data is not None:
+        new_examples = [InputExample(texts=[new_data[i]], label=1) for i in range(len(new_data))]
+        new_dataloader = DataLoader(new_examples, shuffle=True, batch_size=16)
+        model.fit(train_objectives=[(train_dataloader, train_loss), (new_dataloader, train_loss)], epochs=1)
+    else:
+        model.fit(train_objectives=[(train_dataloader, train_loss)], epochs=1)
     save_model(model, model_path)
 
 
