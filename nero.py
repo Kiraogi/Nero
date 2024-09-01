@@ -40,7 +40,8 @@ fine_tuned_model = load_model(model_path)
 # Функция для загрузки данных
 @st.cache_data
 def load_data(file):
-    return dd.read_excel(file)
+    df = pd.read_excel(file)
+    return dd.from_pandas(df, npartitions=2)
 
 
 # Функция для вычисления эмбеддингов
