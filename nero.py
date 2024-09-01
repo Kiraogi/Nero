@@ -19,6 +19,13 @@ def load_model(path):
         st.write("Загружена предобученная модель.")
     return model
 
+# Функция для очистки кэша
+def clear_cache():
+    try:
+        os.remove(model_path)
+        st.write("Кэш очищен.")
+    except FileNotFoundError:
+        st.write("Кэш уже очищен.")
 
 def save_model(model, path):
     torch.save(model.state_dict(), path)
@@ -40,12 +47,31 @@ def load_data(file):
 def compute_embeddings(names, _model):
     return _model.encode(names, convert_to_tensor=True)
 
+# Создание интерфейса
+st.title("Неро")
+st.write("Система для поиска совпадений между названиями товаров")
+
+# Кнопка для очистки кэша
+if st.button("Очистить кэш"):
+    clear_cache()
+
+# Выбор, использовать ли дообученную модель
+use_finetuned_model = st.checkbox("Использовать дообученную модель")
+
+# Загрузка модели
+if use_finetuned_model:
+    model = load_model(model_path)
+else:
+    model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
+    st.write("Загружена предобученная модель.")
 
 # Функция для дообучения модели
-def train_model(model, examples):
+def train_model(model, examples, new_data):
     train_dataloader = DataLoader(examples, shuffle=True, batch_size=16)
     train_loss = losses.MultipleNegativesRankingLoss(model)
-    model.fit(train_objectives=[(train_dataloader, train_loss)], epochs=1)
+    new_examples = [InputExample(texts=[new_data[i]], label=1) for i in range(len(new_data))]
+    new_dataloader = DataLoader(new_examples, shuffle=True, batch_size=16)
+    model.fit(train_objectives=[(train_dataloader, train_loss), (new_dataloader, train_loss)], epochs=1, output_path=model_path)
     save_model(model, model_path)
 
 
