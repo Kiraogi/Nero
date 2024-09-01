@@ -4,6 +4,7 @@ from torch.utils.data import DataLoader
 import streamlit as st
 import io
 import torch
+import os
 
 # Загрузка предобученной модели Sentence-BERT
 model_path = 'finetuned_model.pth'
@@ -36,8 +37,8 @@ def load_data(file):
 
 # Функция для вычисления эмбеддингов
 @st.cache_data
-def compute_embeddings(names, model):
-    return model.encode(names, convert_to_tensor=True)
+def compute_embeddings(names, _model):
+    return _model.encode(names, convert_to_tensor=True)
 
 
 # Функция для дообучения модели
