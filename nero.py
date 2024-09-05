@@ -100,11 +100,10 @@ def find_matching_names(our_product_names, competitor_product_names, threshold=0
             if similarities[i][j] >= threshold:
                 matching_names.append((our_name, competitor_name, similarities[i][j].item()))
 
-    # Сортируем по схожести и выбираем два лучших результата
-    matching_names = sorted(matching_names, key=lambda x: x[2], reverse=True)[:2]
+    # Сортируем по схожести (по убыванию), а затем по названию товара (по возрастанию)
+    matching_names = sorted(matching_names, key=lambda x: (-x[2], x[0]))
 
     return matching_names
-
 
 # Создание визуального интерфейса с использованием Streamlit
 st.title('Сравнение названий товаров')
@@ -150,15 +149,19 @@ if our_file and competitor_file:
     matching_names = find_matching_names(our_product_names, competitor_product_names, threshold=0.8, model=main_model)
 
     if matching_names:
+        # Создаем DataFrame со всеми найденными совпадениями
         results_df = pd.DataFrame(matching_names, columns=['Наше название', 'Название конкурента', 'Схожесть'])
-        st.write('Найденные совпадения:')
+
+        # Отображаем все совпадения
+        st.write('Все совпадения:')
         st.dataframe(results_df)
 
-        # Создание файла для скачивания
+        # Создание файла Excel для скачивания всех совпадений
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            # Записываем все совпадения на лист "Results"
             results_df.to_excel(writer, index=False, sheet_name='Results')
-            
+
             # Получаем доступ к книге и проверяем листы
             workbook = writer.book
             # Проверяем, есть ли листы, и делаем первый лист видимым и активным
