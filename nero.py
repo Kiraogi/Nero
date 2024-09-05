@@ -10,7 +10,7 @@ import os
 # Загрузка предобученной модели Sentence-BERT
 model_path = 'finetuned_model.pth'
 
-
+# Функция для загрузки модели
 def load_model(path):
     model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
     try:
@@ -28,14 +28,14 @@ def clear_cache():
     except FileNotFoundError:
         st.write("Кэш уже очищен.")
 
+# Функция для сохранения модели
 def save_model(model, path):
     torch.save(model.state_dict(), path)
     st.write("Модель сохранена.")
 
-
+# Загрузка моделей
 main_model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
 fine_tuned_model = load_model(model_path)
-
 
 # Функция для загрузки данных
 @st.cache_data
@@ -43,11 +43,11 @@ def load_data(file):
     df = pd.read_excel(file)
     return dd.from_pandas(df, npartitions=2)
 
-
 # Функция для вычисления эмбеддингов
 @st.cache_data
 def compute_embeddings(names, _model):
-    return _model.encode(names, convert_to_tensor=True).compute()
+    # Убираем вызов .compute() так как он не применим к PyTorch тензору
+    return _model.encode(names, convert_to_tensor=True)
 
 # Создание интерфейса
 st.title("Неро")
@@ -79,7 +79,6 @@ def train_model(model, examples, new_data=None):
         model.fit(train_objectives=[(train_dataloader, train_loss)], epochs=1)
     save_model(model, model_path)
 
-
 # Функция для нахождения совпадающих названий
 def find_matching_names(our_product_names, competitor_product_names, threshold=0.8, model=None):
     if model is None:
@@ -91,6 +90,7 @@ def find_matching_names(our_product_names, competitor_product_names, threshold=0
     fine_tuned_embeddings_our = compute_embeddings(our_product_names, fine_tuned_model)
     fine_tuned_embeddings_competitor = compute_embeddings(competitor_product_names, fine_tuned_model)
 
+    # Вычисление средней схожести между предобученной и дообученной моделью
     similarities = (util.pytorch_cos_sim(main_embeddings_our, main_embeddings_competitor) +
                     util.pytorch_cos_sim(fine_tuned_embeddings_our, fine_tuned_embeddings_competitor)) / 2
 
@@ -99,6 +99,9 @@ def find_matching_names(our_product_names, competitor_product_names, threshold=0
         for j, competitor_name in enumerate(competitor_product_names):
             if similarities[i][j] >= threshold:
                 matching_names.append((our_name, competitor_name, similarities[i][j].item()))
+
+    # Сортируем по схожести и выбираем два лучших результата
+    matching_names = sorted(matching_names, key=lambda x: x[2], reverse=True)[:2]
 
     return matching_names
 
@@ -138,8 +141,9 @@ if our_file and competitor_file:
 
     st.write('Обработка данных...')
 
-    our_product_names = our_data[our_column].tolist()
-    competitor_product_names = competitor_data[competitor_column].tolist()
+    # Извлекаем данные из Dask DataFrame и приводим их к Pandas DataFrame
+    our_product_names = our_data[our_column].compute().tolist()
+    competitor_product_names = competitor_data[competitor_column].compute().tolist()
 
     st.write('Вычисление эмбеддингов и поиск совпадений...')
 
@@ -154,6 +158,15 @@ if our_file and competitor_file:
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
             results_df.to_excel(writer, index=False, sheet_name='Results')
+            
+            # Получаем доступ к книге и проверяем листы
+            workbook = writer.book
+            # Проверяем, есть ли листы, и делаем первый лист видимым и активным
+            if workbook.worksheets:
+                first_sheet = workbook.worksheets[0]
+                first_sheet.sheet_state = 'visible'  # Убедимся, что лист видимый
+                workbook.active = 0  # Устанавливаем первый лист как активный
+
         processed_data = output.getvalue()
 
         st.download_button(
@@ -162,5 +175,6 @@ if our_file and competitor_file:
             file_name='matching_products.xlsx',
             mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         )
+
     else:
         st.write('Совпадений не найдено.')
