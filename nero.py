@@ -12,13 +12,15 @@ from datetime import datetime
 """
 Задачи на ближайшие время:
 1) Доработать модель: 
-    ∟Вывод top3 совпадений
+    ∟Вывод top3 совпадений (выбор сколько выводить)
+    ∟Добавить возможность выставления коффициента 
     ∟Добавить проверку на Англ языке 
     ∟Дообучить
 2) Добавить кнопки для выбора модели, сохранения ее
 """
 
 model_directory = './models/'  # Путь к директории для хранения моделей
+
 
 # Функция для получения следующего имени модели с увеличением версии
 def get_next_model_name():
@@ -37,9 +39,13 @@ def get_next_model_name():
         return f"{current_date} Nero {new_version}"
     return f"{current_date} Nero V1.0"
 
-# Функция для загрузки модели
+# Выбор новой модели
+main_model = SentenceTransformer('gtr-t5-large')  # Более продвинутая модель
+fine_tuned_model = None
+
+# Загрузка модели (добавьте в соответствующее место кода)
 def load_model(path):
-    model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
+    model = SentenceTransformer('gtr-t5-large')  # Используем более мощную модель
     try:
         model.load_state_dict(torch.load(path))
         st.write("Загружена дообученная модель.")
@@ -63,12 +69,12 @@ def load_data(file):
         st.write(f"Ошибка при загрузке файла: {e}")
         return None
 
-
+# Основное окно
 model_path = os.path.join(model_directory, get_next_model_name())
 st.title("Неро")
 st.write("Система для поиска совпадений между названиями товаров")
-
-main_model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
+# Загрузка данных
+main_model = SentenceTransformer('gtr-t5-large')
 fine_tuned_model = None
 
 if st.button("Дообучить модель", key="fine_tune_model"):
