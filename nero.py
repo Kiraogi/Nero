@@ -40,12 +40,12 @@ def get_next_model_name():
     return f"{current_date} Nero V1.0"
 
 # Выбор новой модели
-main_model = SentenceTransformer('gtr-t5-xxl')  # Более продвинутая модель
+main_model = SentenceTransformer('gtr-t5-large')  # Более продвинутая модель
 fine_tuned_model = None
 
 # Загрузка модели (добавьте в соответствующее место кода)
 def load_model(path):
-    model = SentenceTransformer('gtr-t5-xxl')  # Используем более мощную модель
+    model = SentenceTransformer('gtr-t5-large')  # Используем более мощную модель
     try:
         model.load_state_dict(torch.load(path))
         st.write("Загружена дообученная модель.")
@@ -74,7 +74,7 @@ model_path = os.path.join(model_directory, get_next_model_name())
 st.title("Неро")
 st.write("Система для поиска совпадений между названиями товаров")
 # Загрузка данных
-main_model = SentenceTransformer('gtr-t5-xxl')
+main_model = SentenceTransformer('gtr-t5-large')
 fine_tuned_model = None
 
 if st.button("Дообучить модель", key="fine_tune_model"):
