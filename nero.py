@@ -209,7 +209,7 @@ if st.button("Начать вычисления", key="run_computation"):
             our_column = st.selectbox(
                 'Выберите колонку с названиями ваших товаров', our_columns, key='our_column')
             competitor_column = st.selectbox(
-                'Выберите к3лонку с названиями товаров конкурента', competitor_columns, key='competitor_column')
+                'Выберите колонку с названиями товаров конкурента', competitor_columns, key='competitor_column')
 
             if examples_file:
                 examples_data = load_data(examples_file)
