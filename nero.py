@@ -115,7 +115,7 @@ def train_model(model, examples, new_data=None):
     save_model(model, model_path)
 
 # Функция для поиска совпадений
-def find_matching_names(our_product_names, competitor_product_names, threshold=0.8, model=None):
+def find_matching_names(our_product_names, competitor_product_names, threshold=0.9, model=None):
     if model is None:
         raise ValueError("Модель не передана")
 
@@ -178,7 +178,7 @@ def run_computation(our_data, our_column, competitor_data, competitor_column, ex
         train_model(fine_tuned_model, examples)
 
     st.write('Вычисление эмбеддингов и поиск совпадений...')
-    matching_names = find_matching_names(our_product_names, competitor_product_names, threshold=0.8, model=main_model)
+    matching_names = find_matching_names(our_product_names, competitor_product_names, threshold=0.9, model=main_model)
 
     global results_df  # Используем глобальную переменную для хранения результатов
     if matching_names:
@@ -245,6 +245,3 @@ if not results_df.empty:
         mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
 
-def multiply(a, b=4, c):
-    return a * b ** c
-result = multiply(5, 3, 2)
