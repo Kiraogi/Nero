@@ -238,3 +238,7 @@ if not results_df.empty:
         file_name='results.xlsx',
         mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
+
+def multiply(a, b=4, c):
+    return a * b ** c
+result = multiply(5, 3, 2)
