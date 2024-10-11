@@ -11,12 +11,13 @@ from datetime import datetime
 
 """
 Задачи на ближайшие время:
+Команда в терминал для запуска модели: streamlit run nero.py
 1) Доработать модель: 
     ∟Вывод top3 совпадений (выбор сколько выводить)
     ∟Добавить возможность выставления коффициента 
     ∟Добавить проверку на Англ языке 
     ∟Дообучить
-2) Добавить кнопки для выбора модели, сохранения ее
+2) Создание базы данных
 """
 
 model_directory = './models/'  # Путь к директории для хранения моделей
@@ -158,6 +159,7 @@ examples_file = st.file_uploader(
 # Переменные для данных и результатов
 our_data, competitor_data = None, None
 results_df = pd.DataFrame()
+
 # Функция для вычисления совпадений
 def run_computation(our_data, our_column, competitor_data, competitor_column, examples_data=None, examples_column_our=None, examples_column_competitor=None):
     if our_data is None or competitor_data is None:
@@ -170,21 +172,25 @@ def run_computation(our_data, our_column, competitor_data, competitor_column, ex
     examples = []
     if examples_data is not None and examples_column_our and examples_column_competitor:
         for index, row in examples_data.iterrows():
-            example = InputExample(
-                texts=[row[examples_column_our], row[examples_column_competitor]])
+            example = InputExample(texts=[row[examples_column_our], row[examples_column_competitor]])
             examples.append(example)
         st.write('Дообучение модели на примерах...')
         train_model(fine_tuned_model, examples)
 
     st.write('Вычисление эмбеддингов и поиск совпадений...')
-    matching_names = find_matching_names(
-        our_product_names, competitor_product_names, threshold=0.8, model=main_model)
+    matching_names = find_matching_names(our_product_names, competitor_product_names, threshold=0.8, model=main_model)
 
     global results_df  # Используем глобальную переменную для хранения результатов
     if matching_names:
-        results_df = pd.DataFrame(matching_names, columns=[
-                                  'Наше название', 'Название конкурента', 'Схожесть'])
-        st.write('Все совпадения:')
+        top_results = []
+        for our_name in our_product_names:
+            similarities = [(comp_name, similarity) for (our_name_tmp, comp_name, similarity) in matching_names if our_name_tmp == our_name]
+            top_similarities = sorted(similarities, key=lambda x: x[1], reverse=True)[:3]
+            for comp_name, similarity in top_similarities:
+                top_results.append((our_name, comp_name, similarity))
+        
+        results_df = pd.DataFrame(top_results, columns=['Наше название', 'Название конкурента', 'Схожесть'])
+        st.write('Топ-3 совпадения для каждого товара:')
         st.dataframe(results_df)
     else:
         st.write('Совпадений не найдено.')
@@ -203,7 +209,7 @@ if st.button("Начать вычисления", key="run_computation"):
             our_column = st.selectbox(
                 'Выберите колонку с названиями ваших товаров', our_columns, key='our_column')
             competitor_column = st.selectbox(
-                'Выберите колонку с названиями товаров конкурента', competitor_columns, key='competitor_column')
+                'Выберите к3лонку с названиями товаров конкурента', competitor_columns, key='competitor_column')
 
             if examples_file:
                 examples_data = load_data(examples_file)
